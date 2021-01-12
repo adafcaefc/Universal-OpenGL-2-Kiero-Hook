@@ -21,24 +21,24 @@ BOOL __stdcall hkwglSwapBuffers(HDC hDc)
 		oWndProc = (WNDPROC)SetWindowLongPtr(mWindow, GWLP_WNDPROC, (LONG_PTR)WndProc);
 		ImGuiWglContext = wglCreateContext(hDc);
 		IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImGuiIO& io = ImGui::GetIO();
-        ImGui_ImplWin32_Init(mWindow);
-        ImGui_ImplOpenGL2_Init();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+		ImGui_ImplWin32_Init(mWindow);
+		ImGui_ImplOpenGL2_Init();
 		initImGui = true;
 	}
 
 	HGLRC OldWglContext = wglGetCurrentContext();
 	wglMakeCurrent(hDc, ImGuiWglContext);
 
-    ImGui_ImplOpenGL2_NewFrame();
-    ImGui_ImplWin32_NewFrame();
+	ImGui_ImplOpenGL2_NewFrame();
+	ImGui_ImplWin32_NewFrame();
 
 	ImGui::NewFrame();
 	ImGui::Begin("Window Title");
 	ImGui::Text("Hello world!");
 	ImGui::End();
-    ImGui::EndFrame();
+	ImGui::EndFrame();
 	ImGui::Render();
 
 	ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
@@ -49,16 +49,16 @@ BOOL __stdcall hkwglSwapBuffers(HDC hDc)
 DWORD WINAPI MainThread(LPVOID lpParam)
 {
 	bool initHook = false;
-    do
+	do
 	{
-        if (kiero::init(kiero::RenderType::Auto) == kiero::Status::Success)
+		if (kiero::init(kiero::RenderType::Auto) == kiero::Status::Success)
 		{
 			// 336 is the index for wglSwapBuffers on this modified version of kiero
-            kiero::bind(336, (void**)&owglSwapBuffers, hkwglSwapBuffers);
+			kiero::bind(336, (void**)&owglSwapBuffers, hkwglSwapBuffers);
 			initHook = true;
-        }
+		}
 		Sleep(250);
-    } 
+	} 
 	while (!initHook);
 	return TRUE;
 }
