@@ -9,70 +9,77 @@ typedef BOOL(__stdcall* twglSwapBuffers) (HDC hDc);
 typedef LRESULT(CALLBACK* WNDPROC)(HWND, UINT, WPARAM, LPARAM);
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-WNDPROC oWndProc;
-twglSwapBuffers owglSwapBuffers;
-void RenderMain();
+extern void RenderMain();
 
-LRESULT __stdcall WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+namespace ImGuiHook 
 {
-	if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
-		return true;
-	return CallWindowProc(oWndProc, hWnd, uMsg, wParam, lParam);
-}
+	WNDPROC oWndProc;
+	twglSwapBuffers owglSwapBuffers;
 
-HGLRC ImGuiWglContext;
-static bool initImGui = false;
-BOOL __stdcall hkwglSwapBuffers(HDC hDc)
-{
-	if (!initImGui)
+	LRESULT __stdcall WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
-		HWND mWindow = WindowFromDC(hDc);
-		oWndProc = (WNDPROC)SetWindowLongPtr(mWindow, GWLP_WNDPROC, (LONG_PTR)WndProc);
-		ImGuiWglContext = wglCreateContext(hDc);
-		IMGUI_CHECKVERSION();
-		ImGui::CreateContext();
-		ImGuiIO& io = ImGui::GetIO();
-		// You can apply your io styles here
-		ImGui_ImplWin32_Init(mWindow);
-		ImGui_ImplOpenGL2_Init();
-		initImGui = true;
+		if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+			return true;
+		return CallWindowProc(oWndProc, hWnd, uMsg, wParam, lParam);
 	}
 
-	HGLRC OldWglContext = wglGetCurrentContext();
-	wglMakeCurrent(hDc, ImGuiWglContext);
-
-	ImGui_ImplOpenGL2_NewFrame();
-	ImGui_ImplWin32_NewFrame();
-
-	ImGui::NewFrame();
-	RenderMain();
-	ImGui::EndFrame();
-	ImGui::Render();
-
-	ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
-	wglMakeCurrent(hDc, OldWglContext);
-	return owglSwapBuffers(hDc);
-}
-
-DWORD WINAPI MainImGuiThread(LPVOID lpParam)
-{
-	bool initHook = false;
-	do
+	HGLRC ImGuiWglContext;
+	static bool initImGui = false;
+	BOOL __stdcall hkwglSwapBuffers(HDC hDc)
 	{
-		if (kiero::init(kiero::RenderType::Auto) == kiero::Status::Success)
+		if (!initImGui)
 		{
-			// 336 is the index for wglSwapBuffers on this modified version of kiero
-			kiero::bind(336, (void**)&owglSwapBuffers, hkwglSwapBuffers);
-			initHook = true;
+			HWND mWindow = WindowFromDC(hDc);
+			oWndProc = (WNDPROC)SetWindowLongPtr(mWindow, GWLP_WNDPROC, (LONG_PTR)WndProc);
+			ImGuiWglContext = wglCreateContext(hDc);
+			IMGUI_CHECKVERSION();
+			ImGui::CreateContext();
+			ImGuiIO& io = ImGui::GetIO();
+			// You can apply your io styles here
+			ImGui_ImplWin32_Init(mWindow);
+			ImGui_ImplOpenGL2_Init();
+			initImGui = true;
 		}
-		Sleep(250);
-	} 
-	while (!initHook);
-	return TRUE;
+
+		HGLRC OldWglContext = wglGetCurrentContext();
+		wglMakeCurrent(hDc, ImGuiWglContext);
+
+		ImGui_ImplOpenGL2_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+
+		ImGui::NewFrame();
+
+		RenderMain();
+
+		ImGui::EndFrame();
+		ImGui::Render();
+
+		ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+		wglMakeCurrent(hDc, OldWglContext);
+		return owglSwapBuffers(hDc);
+	}
+
+	DWORD WINAPI Main(LPVOID lpParam)
+	{
+		bool initHook = false;
+		do
+		{
+			if (kiero::init(kiero::RenderType::Auto) == kiero::Status::Success)
+			{
+				// 336 is the index for wglSwapBuffers on this modified version of kiero
+				kiero::bind(336, (void**)&owglSwapBuffers, hkwglSwapBuffers);
+				initHook = true;
+			}
+			Sleep(250);
+		} while (!initHook);
+		return TRUE;
+	}
+
+	// this function may still crash, I am working to find a fix
+	void Unload()
+	{
+		kiero::shutdown();
+	}
 }
 
-// this function may still crash, I am working to find a fix
-void ImGuiUnload() {
-	kiero::shutdown();
-}
 

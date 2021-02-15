@@ -1,5 +1,7 @@
 #pragma once
 #include <Windows.h>
 
-DWORD WINAPI MainImGuiThread(LPVOID lpParam);
-void ImGuiUnload();
+namespace ImGuiHook {
+	DWORD WINAPI Main(LPVOID lpParam);
+	void Unload();
+}

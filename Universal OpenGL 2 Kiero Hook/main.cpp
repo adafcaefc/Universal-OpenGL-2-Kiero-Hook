@@ -2,7 +2,8 @@
 #include "imgui_hook.h"
 #include "imgui/imgui.h"
 
-void RenderMain() {
+void RenderMain() 
+{
 	ImGui::Begin("Window Title");
 	ImGui::Text("Hello world!");
 	ImGui::End();
@@ -14,10 +15,10 @@ BOOL WINAPI DllMain(HMODULE hMod, DWORD dwReason, LPVOID lpReserved)
 	{
 	case DLL_PROCESS_ATTACH:
 		DisableThreadLibraryCalls(hMod);
-		CreateThread(nullptr, NULL, MainImGuiThread, hMod, NULL, nullptr);
+		CreateThread(nullptr, NULL, ImGuiHook::Main, hMod, NULL, nullptr);
 		break;
 	case DLL_PROCESS_DETACH:
-		ImGuiUnload();
+		ImGuiHook::Unload();
 		break;
 	}
 	return TRUE;
