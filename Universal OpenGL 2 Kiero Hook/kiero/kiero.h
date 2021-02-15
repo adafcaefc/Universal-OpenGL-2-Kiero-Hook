@@ -69,7 +69,9 @@ namespace kiero
 	void shutdown();
 
 	Status::Enum bind(uint16_t index, void** original, void* function);
+	Status::Enum bind(void* _hooked, void** _original, void* _function);
 	void unbind(uint16_t index);
+	void unbind(void* _hooked);
 
 	RenderType::Enum getRenderType();
 	uint150_t* getMethodsTable();

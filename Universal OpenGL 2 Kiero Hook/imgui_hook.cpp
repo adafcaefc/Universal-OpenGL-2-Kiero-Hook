@@ -5,7 +5,7 @@
 #include "imgui/imgui_impl_win32.h"
 #include "imgui/imgui_impl_opengl2.h"
 
-typedef BOOL(__stdcall* twglSwapBuffers) (HDC hDc);
+typedef BOOL(__stdcall* wglSwapBuffers_t) (HDC hDc);
 typedef LRESULT(CALLBACK* WNDPROC)(HWND, UINT, WPARAM, LPARAM);
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -14,7 +14,7 @@ extern void RenderMain();
 namespace ImGuiHook 
 {
 	WNDPROC oWndProc;
-	twglSwapBuffers owglSwapBuffers;
+	wglSwapBuffers_t owglSwapBuffers;
 
 	LRESULT __stdcall WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
@@ -24,20 +24,25 @@ namespace ImGuiHook
 	}
 
 	HGLRC ImGuiWglContext;
+	void InitImGuiOpenGL2(HDC hDc) 
+	{
+		HWND mWindow = WindowFromDC(hDc);
+		oWndProc = (WNDPROC)SetWindowLongPtr(mWindow, GWLP_WNDPROC, (LONG_PTR)WndProc);
+		ImGuiWglContext = wglCreateContext(hDc);
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+		// You can apply your io styles here
+		ImGui_ImplWin32_Init(mWindow);
+		ImGui_ImplOpenGL2_Init();
+	}
+
 	static bool initImGui = false;
 	BOOL __stdcall hkwglSwapBuffers(HDC hDc)
 	{
 		if (!initImGui)
 		{
-			HWND mWindow = WindowFromDC(hDc);
-			oWndProc = (WNDPROC)SetWindowLongPtr(mWindow, GWLP_WNDPROC, (LONG_PTR)WndProc);
-			ImGuiWglContext = wglCreateContext(hDc);
-			IMGUI_CHECKVERSION();
-			ImGui::CreateContext();
-			ImGuiIO& io = ImGui::GetIO();
-			// You can apply your io styles here
-			ImGui_ImplWin32_Init(mWindow);
-			ImGui_ImplOpenGL2_Init();
+			InitImGuiOpenGL2(hDc);
 			initImGui = true;
 		}
 
@@ -59,6 +64,13 @@ namespace ImGuiHook
 		return owglSwapBuffers(hDc);
 	}
 
+	wglSwapBuffers_t* get_wglSwapBuffers()
+	{
+		auto hMod = GetModuleHandleA("OPENGL32.dll");
+		if (!hMod) return nullptr;
+		return (wglSwapBuffers_t*)GetProcAddress(hMod, "wglSwapBuffers");
+	}
+
 	DWORD WINAPI Main(LPVOID lpParam)
 	{
 		bool initHook = false;
@@ -66,8 +78,7 @@ namespace ImGuiHook
 		{
 			if (kiero::init(kiero::RenderType::Auto) == kiero::Status::Success)
 			{
-				// 336 is the index for wglSwapBuffers on this modified version of kiero
-				kiero::bind(336, (void**)&owglSwapBuffers, hkwglSwapBuffers);
+				kiero::bind(get_wglSwapBuffers(), (void**)&owglSwapBuffers, hkwglSwapBuffers);
 				initHook = true;
 			}
 			Sleep(250);
@@ -75,7 +86,7 @@ namespace ImGuiHook
 		return TRUE;
 	}
 
-	// this function may still crash, I am working to find a fix
+	// This function may still crashes, I am working to find a fix
 	void Unload()
 	{
 		kiero::shutdown();
