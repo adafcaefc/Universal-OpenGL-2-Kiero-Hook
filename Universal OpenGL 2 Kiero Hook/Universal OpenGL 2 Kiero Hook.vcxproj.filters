@@ -90,11 +90,11 @@
     <ClInclude Include="includes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="imgui_hook.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="imgui\imgui.cpp">
       <Filter>Includes\imgui</Filter>
     </ClCompile>
@@ -133,6 +133,12 @@
     </ClCompile>
     <ClCompile Include="imgui\imgui_tables.cpp">
       <Filter>Includes\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_hook.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
