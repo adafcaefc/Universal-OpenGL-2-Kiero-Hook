@@ -168,6 +168,7 @@
     <ClCompile Include="imgui\imgui_draw.cpp" />
     <ClCompile Include="imgui\imgui_impl_opengl2.cpp" />
     <ClCompile Include="imgui\imgui_impl_win32.cpp" />
+    <ClCompile Include="imgui\imgui_tables.cpp" />
     <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="kiero\kiero.cpp" />
     <ClCompile Include="kiero\minhook\src\buffer.c" />
