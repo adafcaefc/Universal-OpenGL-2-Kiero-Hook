@@ -87,9 +87,6 @@
     <ClInclude Include="imgui\imconfig.h">
       <Filter>Includes\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="includes.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="imgui_hook.h">
       <Filter>Source Files</Filter>
     </ClInclude>
