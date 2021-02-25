@@ -81,7 +81,7 @@
     <ClCompile Include="include\kiero\minhook\src\hde\hde64.c">
       <Filter>Includes\kiero\minhook\src\hde</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

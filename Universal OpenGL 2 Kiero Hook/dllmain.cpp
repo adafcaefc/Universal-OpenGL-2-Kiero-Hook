@@ -15,7 +15,7 @@ BOOL WINAPI DllMain(HMODULE hMod, DWORD dwReason, LPVOID lpReserved)
 	{
 	case DLL_PROCESS_ATTACH:
 		DisableThreadLibraryCalls(hMod);
-		ImGuiHook::Load(hMod, RenderMain);
+		ImGuiHook::Load(RenderMain);
 		break;
 	case DLL_PROCESS_DETACH:
 		ImGuiHook::Unload();
