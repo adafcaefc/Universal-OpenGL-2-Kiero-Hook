@@ -16,9 +16,6 @@
     <Filter Include="Includes">
       <UniqueIdentifier>{b8aa9d33-5139-44e3-9e05-2a6a3bc74583}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\include">
-      <UniqueIdentifier>{deeaf998-b45c-4b9f-b0bb-57dd871acb94}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Includes\imgui">
       <UniqueIdentifier>{d43f0e47-ea9b-47bc-8f58-6f194dcef158}</UniqueIdentifier>
     </Filter>
