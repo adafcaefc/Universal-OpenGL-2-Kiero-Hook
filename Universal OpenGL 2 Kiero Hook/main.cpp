@@ -1,6 +1,6 @@
 #include <Windows.h>
-#include "imgui_hook.h"
-#include "imgui/imgui.h"
+#include "include/imgui_hook.h"
+#include "include/imgui/imgui.h"
 
 void RenderMain() 
 {
@@ -15,7 +15,7 @@ BOOL WINAPI DllMain(HMODULE hMod, DWORD dwReason, LPVOID lpReserved)
 	{
 	case DLL_PROCESS_ATTACH:
 		DisableThreadLibraryCalls(hMod);
-		CreateThread(nullptr, NULL, ImGuiHook::Main, hMod, NULL, nullptr);
+		ImGuiHook::Load(hMod, RenderMain);
 		break;
 	case DLL_PROCESS_DETACH:
 		ImGuiHook::Unload();

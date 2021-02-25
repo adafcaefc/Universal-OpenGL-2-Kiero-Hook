@@ -6,7 +6,7 @@
 #include "imgui/imgui_impl_win32.h"
 #include "imgui/imgui_impl_opengl2.h"
 
-#define _CAST(t,v)  reinterpret_cast<t>(v)
+#define _CAST(t,v)	reinterpret_cast<t>(v)
 #define _VOID(v)	std::function<void(v)>
 
 typedef BOOL(__stdcall* wglSwapBuffers_t) (
@@ -31,26 +31,32 @@ extern void RenderMain();
 
 namespace ImGuiHook 
 {
-	static WNDPROC			 oWndProc;
-	static wglSwapBuffers_t  owglSwapBuffers;
-	static HGLRC			 ImGuiWglContext;
-	static bool				 initImGui = false;
+	// Original functions variable
+	static WNDPROC			 o_WndProc;
+	static wglSwapBuffers_t  o_wglSwapBuffers;
 
-	LRESULT __stdcall WndProc(
+	// Global variable
+	static HGLRC    ImGuiWglContext;
+	static bool	    initImGui = false;
+	static _VOID()  RenderMain;
+
+	// WndProc callback ImGui handler
+	LRESULT CALLBACK h_WndProc(
 		const HWND	hWnd, 
 		UINT		uMsg, 
 		WPARAM		wParam, 
 		LPARAM		lParam)
 	{
 		if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam)) return true;
-		return CallWindowProc(oWndProc, hWnd, uMsg, wParam, lParam);
+		return CallWindowProc(o_WndProc, hWnd, uMsg, wParam, lParam);
 	}
 
+	// Initialisation for ImGui
 	void InitOpenGL2(HDC hDc, bool* init) 
 	{
 		if (*init) return;
 		HWND hWnd = WindowFromDC(hDc);
-		oWndProc = _CAST(WNDPROC, SetWindowLongPtr(hWnd, GWLP_WNDPROC, _CAST(LONG_PTR, WndProc)));
+		o_WndProc = _CAST(WNDPROC, SetWindowLongPtr(hWnd, GWLP_WNDPROC, _CAST(LONG_PTR, h_WndProc)));
 		ImGuiWglContext = wglCreateContext(hDc);
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
@@ -59,6 +65,7 @@ namespace ImGuiHook
 		*init = true;
 	}
 
+	// Generic ImGui renderer for Win32 backend
 	void RenderWin32(std::function<void()> render)
 	{
 		ImGui_ImplWin32_NewFrame();
@@ -68,6 +75,7 @@ namespace ImGuiHook
 		ImGui::Render();
 	}
 
+	// Generic ImGui renderer for OpenGL2 backend
 	void RenderOpenGL2(
 		HGLRC		   ImGuiWglContext,
 		HDC			   hDc,
@@ -83,33 +91,41 @@ namespace ImGuiHook
 		
 	}
 
-	BOOL __stdcall hkwglSwapBuffers(HDC hDc)
+	// Hooked wglSwapBuffers function
+	BOOL __stdcall h_wglSwapBuffers(HDC hDc)
 	{
 		InitOpenGL2(hDc, &initImGui);
 		RenderOpenGL2(ImGuiWglContext, hDc, RenderWin32, RenderMain);
-		return owglSwapBuffers(hDc);
+		return o_wglSwapBuffers(hDc);
 	}
 
+	// Function to get the pointer of wglSwapBuffers
 	wglSwapBuffers_t* get_wglSwapBuffers()
 	{
 		auto hMod = GetModuleHandleA("OPENGL32.dll");
 		if (!hMod) return nullptr;
-		_CAST(wglSwapBuffers_t*, GetProcAddress(hMod, "wglSwapBuffers"));
+		return (wglSwapBuffers_t*)GetProcAddress(hMod, "wglSwapBuffers");
 	}
 
-	DWORD WINAPI Main(LPVOID lpParam)
+	DWORD WINAPI MainThread(LPVOID lpParam)
 	{
 		bool initHook = false;
 		do
 		{
 			if (kiero::init(kiero::RenderType::Auto) == kiero::Status::Success)
 			{
-				kiero::bind(get_wglSwapBuffers(), (void**)&owglSwapBuffers, hkwglSwapBuffers);
+				kiero::bind(get_wglSwapBuffers(), (void**)&o_wglSwapBuffers, h_wglSwapBuffers);
 				initHook = true;
 			}
 			Sleep(250);
 		} while (!initHook);
 		return TRUE;
+	}
+
+	void Load(HMODULE hMod, _VOID() render)
+	{
+		RenderMain = render;
+		CreateThread(nullptr, NULL, MainThread, hMod, NULL, nullptr);
 	}
 
 	// This function may still crashes, I am working to find a fix
