@@ -706,8 +706,7 @@ kiero::Status::Enum kiero::bind(void* _hooked, void** _original, void* _function
 	if (g_renderType != RenderType::None)
 	{
 #if KIERO_USE_MINHOOK
-		void* target = _hooked;
-		if (MH_CreateHook(target, _function, _original) != MH_OK || MH_EnableHook(target) != MH_OK)
+		if (MH_CreateHook(_hooked, _function, _original) != MH_OK || MH_EnableHook(_hooked) != MH_OK)
 		{
 			return Status::UnknownError;
 		}

@@ -1,66 +1,92 @@
 #include <Windows.h>
+#include <functional> 
 #include <GL/gl.h>
 #include "kiero/kiero.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_win32.h"
 #include "imgui/imgui_impl_opengl2.h"
 
-typedef BOOL(__stdcall* wglSwapBuffers_t) (HDC hDc);
-typedef LRESULT(CALLBACK* WNDPROC)(HWND, UINT, WPARAM, LPARAM);
+#define _CAST(t,v)  reinterpret_cast<t>(v)
+#define _VOID(v)	std::function<void(v)>
 
-extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+typedef BOOL(__stdcall* wglSwapBuffers_t) (
+	HDC hDc
+);
+
+typedef LRESULT(CALLBACK* WNDPROC) (
+	IN HWND   hwnd,
+	IN UINT   uMsg,
+	IN WPARAM wParam,
+	IN LPARAM lParam
+);
+
+extern LRESULT ImGui_ImplWin32_WndProcHandler(
+	HWND hWnd, 
+	UINT msg, 
+	WPARAM wParam, 
+	LPARAM lParam
+);
+
 extern void RenderMain();
 
 namespace ImGuiHook 
 {
-	WNDPROC oWndProc;
-	wglSwapBuffers_t owglSwapBuffers;
+	static WNDPROC			 oWndProc;
+	static wglSwapBuffers_t  owglSwapBuffers;
+	static HGLRC			 ImGuiWglContext;
+	static bool				 initImGui = false;
 
-	LRESULT __stdcall WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+	LRESULT __stdcall WndProc(
+		const HWND	hWnd, 
+		UINT		uMsg, 
+		WPARAM		wParam, 
+		LPARAM		lParam)
 	{
-		if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
-			return true;
+		if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam)) return true;
 		return CallWindowProc(oWndProc, hWnd, uMsg, wParam, lParam);
 	}
 
-	HGLRC ImGuiWglContext;
-	void InitImGuiOpenGL2(HDC hDc) 
+	void InitOpenGL2(HDC hDc, bool* init) 
 	{
-		HWND mWindow = WindowFromDC(hDc);
-		oWndProc = (WNDPROC)SetWindowLongPtr(mWindow, GWLP_WNDPROC, (LONG_PTR)WndProc);
+		if (*init) return;
+		HWND hWnd = WindowFromDC(hDc);
+		oWndProc = _CAST(WNDPROC, SetWindowLongPtr(hWnd, GWLP_WNDPROC, _CAST(LONG_PTR, WndProc)));
 		ImGuiWglContext = wglCreateContext(hDc);
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
-		ImGuiIO& io = ImGui::GetIO();
-		// You can apply your io styles here
-		ImGui_ImplWin32_Init(mWindow);
+		ImGui_ImplWin32_Init(hWnd);
 		ImGui_ImplOpenGL2_Init();
+		*init = true;
 	}
 
-	static bool initImGui = false;
-	BOOL __stdcall hkwglSwapBuffers(HDC hDc)
+	void RenderWin32(std::function<void()> render)
 	{
-		if (!initImGui)
-		{
-			InitImGuiOpenGL2(hDc);
-			initImGui = true;
-		}
-
-		HGLRC OldWglContext = wglGetCurrentContext();
-		wglMakeCurrent(hDc, ImGuiWglContext);
-
-		ImGui_ImplOpenGL2_NewFrame();
 		ImGui_ImplWin32_NewFrame();
-
 		ImGui::NewFrame();
-
-		RenderMain();
-
+		render();
 		ImGui::EndFrame();
 		ImGui::Render();
+	}
 
+	void RenderOpenGL2(
+		HGLRC		   ImGuiWglContext,
+		HDC			   hDc,
+		_VOID(_VOID()) render,
+		_VOID()		   render_inner)
+	{
+		HGLRC OldWglContext = wglGetCurrentContext();
+		wglMakeCurrent(hDc, ImGuiWglContext);
+		ImGui_ImplOpenGL2_NewFrame();
+		render(render_inner);
 		ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
 		wglMakeCurrent(hDc, OldWglContext);
+		
+	}
+
+	BOOL __stdcall hkwglSwapBuffers(HDC hDc)
+	{
+		InitOpenGL2(hDc, &initImGui);
+		RenderOpenGL2(ImGuiWglContext, hDc, RenderWin32, RenderMain);
 		return owglSwapBuffers(hDc);
 	}
 
@@ -68,7 +94,7 @@ namespace ImGuiHook
 	{
 		auto hMod = GetModuleHandleA("OPENGL32.dll");
 		if (!hMod) return nullptr;
-		return (wglSwapBuffers_t*)GetProcAddress(hMod, "wglSwapBuffers");
+		_CAST(wglSwapBuffers_t*, GetProcAddress(hMod, "wglSwapBuffers"));
 	}
 
 	DWORD WINAPI Main(LPVOID lpParam)
