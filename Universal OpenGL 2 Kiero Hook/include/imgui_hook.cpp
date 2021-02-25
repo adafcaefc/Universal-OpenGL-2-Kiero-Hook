@@ -49,6 +49,7 @@ namespace ImGuiHook
 		LPARAM		lParam)
 	{
 		if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam)) return true;
+
 		return CallWindowProc(o_WndProc, hWnd, uMsg, wParam, lParam);
 	}
 
@@ -66,17 +67,22 @@ namespace ImGuiHook
 	{
 		if (*init) return;
 		auto tStatus = true;
+
 		auto hWnd = WindowFromDC(hDc);
 		auto wLPTR = SetWindowLongPtr(hWnd, GWLP_WNDPROC, _CAST(LONG_PTR, h_WndProc));
 		if (!wLPTR) return ExitStatus(status, false);
+
 		o_WndProc = _CAST(WNDPROC, wLPTR);
 		g_WglContext = wglCreateContext(hDc);
+
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
+
 		tStatus &= ImGui_ImplWin32_Init(hWnd);
 		tStatus &= ImGui_ImplOpenGL2_Init();
+
 		*init = true;
-		ExitStatus(status, tStatus);
+		return ExitStatus(status, tStatus);
 	}
 
 	// Generic ImGui renderer for Win32 backend
@@ -85,7 +91,9 @@ namespace ImGuiHook
 	{
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
+
 		render();
+
 		ImGui::EndFrame();
 		ImGui::Render();
 	}
@@ -99,13 +107,17 @@ namespace ImGuiHook
 		OUT bool*	  status)
 	{
 		auto tStatus = true;
+
 		auto o_WglContext = wglGetCurrentContext();
 		tStatus &= wglMakeCurrent(hDc, WglContext);
+
 		ImGui_ImplOpenGL2_NewFrame();
 		render(render_inner);
 		ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+
 		tStatus &= wglMakeCurrent(hDc, o_WglContext);
-		ExitStatus(status, tStatus);
+
+		return ExitStatus(status, tStatus);
 	}
 
 	// Hooked wglSwapBuffers function
@@ -114,6 +126,7 @@ namespace ImGuiHook
 	{
 		InitOpenGL2(hDc, &initImGui, nullptr);
 		RenderOpenGL2(g_WglContext, hDc, RenderWin32, RenderMain, nullptr);
+
 		return o_wglSwapBuffers(hDc);
 	}
 
@@ -122,6 +135,7 @@ namespace ImGuiHook
 	{
 		auto hMod = GetModuleHandleA("OPENGL32.dll");
 		if (!hMod) return nullptr;
+
 		return (wglSwapBuffers_t*)GetProcAddress(hMod, "wglSwapBuffers");
 	}
 
@@ -130,6 +144,7 @@ namespace ImGuiHook
 	{
 		if (kiero::init(kiero::RenderType::Auto) == kiero::Status::Success)
 			return kiero::bind(get_wglSwapBuffers(), (void**)&o_wglSwapBuffers, h_wglSwapBuffers) == kiero::Status::Success;
+
 		return false;
 	}
 
