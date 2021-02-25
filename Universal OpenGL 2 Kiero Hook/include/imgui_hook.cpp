@@ -107,6 +107,7 @@ namespace ImGuiHook
 		return (wglSwapBuffers_t*)GetProcAddress(hMod, "wglSwapBuffers");
 	}
 
+	// Main thread to check the hook
 	DWORD WINAPI MainThread(LPVOID lpParam)
 	{
 		bool initHook = false;
@@ -122,13 +123,14 @@ namespace ImGuiHook
 		return TRUE;
 	}
 
+	// Main load function
 	void Load(HMODULE hMod, _VOID() render)
 	{
 		RenderMain = render;
 		CreateThread(nullptr, NULL, MainThread, hMod, NULL, nullptr);
 	}
 
-	// This function may still crashes, I am working to find a fix
+	// Main unload function
 	void Unload()
 	{
 		kiero::shutdown();
