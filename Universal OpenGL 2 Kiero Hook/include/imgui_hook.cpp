@@ -58,6 +58,8 @@ namespace ImGuiHook
 	{
 		if (status) *status = value;
 	}
+	
+	HWND hWnd = nullptr;
 
 	// Initialisation for ImGui
 	void InitOpenGL2(
@@ -65,11 +67,18 @@ namespace ImGuiHook
 		OUT bool* init,
 		OUT bool* status)
 	{
-		if (*init) return;
+		if (WindowFromDC(hDc) == hWnd && *init) return;
 		auto tStatus = true;
 
-		auto hWnd = WindowFromDC(hDc);
+		hWnd = WindowFromDC(hDc);
 		auto wLPTR = SetWindowLongPtr(hWnd, GWLP_WNDPROC, _CAST(LONG_PTR, h_WndProc));
+
+		if (*init) {
+			ImGui_ImplWin32_Init(hWnd);
+            		ImGui_ImplOpenGL2_Init();
+			return;
+		};
+		
 		if (!wLPTR) return ExitStatus(status, false);
 
 		o_WndProc = _CAST(WNDPROC, wLPTR);
