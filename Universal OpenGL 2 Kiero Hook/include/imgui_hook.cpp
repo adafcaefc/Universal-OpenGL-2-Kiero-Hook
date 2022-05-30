@@ -73,11 +73,12 @@ namespace ImGuiHook
 		hWnd = WindowFromDC(hDc);
 		auto wLPTR = SetWindowLongPtr(hWnd, GWLP_WNDPROC, _CAST(LONG_PTR, h_WndProc));
 
-		if (*init) {
+		if (*init) 
+		{
 			ImGui_ImplWin32_Init(hWnd);
-            		ImGui_ImplOpenGL2_Init();
+            ImGui_ImplOpenGL2_Init();
 			return;
-		};
+		}
 		
 		if (!wLPTR) return ExitStatus(status, false);
 
