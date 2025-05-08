@@ -26,7 +26,7 @@ namespace ImGuiHook
         IN  LPARAM lParam);
 
     // Original functions variables
-    static WNDPROC			g_WndProc_o        = nullptr;
+    static WNDPROC          g_WndProc_o        = nullptr;
     static wglSwapBuffers_t g_wglSwapBuffers_o = nullptr;
 
     // Global variables
