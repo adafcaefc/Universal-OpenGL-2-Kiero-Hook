@@ -19,16 +19,43 @@
  * -----------------------------------------------------------------------------
  *
  * Visual Studio        https://visualstudio.microsoft.com/
- * Windows OpenGL SDK   https://www.microsoft.com/en-us/download/details.aspx?id=8279
  *
  */
 
 #pragma once
 #include <Windows.h>
-#include <functional>
+#include <functional> 
+#include <string>
+
 
 namespace ImGuiHook
 {
-	bool Load(std::function<void()> render);
-	void Unload();
+    /**
+     * @brief Load the ImGui hook.
+     *
+     * This function sets up the necessary hooks to render ImGui in the target environment.
+     *
+     * @param render A function to be called every frame for rendering.
+     * @param init An optional function to be called once when the hook is initialized.
+     * @return true if the hook was loaded successfully, false otherwise.
+     */
+    bool Load(
+        const std::function<void()>& render, 
+        const std::function<void()>& init = []() {});
+
+    /**
+     * @brief Unload the ImGui hook.
+     *
+     * This function should be called when the DLL is detached or the hook is no longer needed.
+     */
+    void Unload();
+
+    /**
+     * @brief Get the last error message.
+     *
+     * This function returns the most recent error message encountered during hook operations.
+     *
+     * @return A string containing the last error message.
+     */
+    std::string GetLastError();
 }

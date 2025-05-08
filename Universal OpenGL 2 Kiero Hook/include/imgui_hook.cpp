@@ -1,176 +1,194 @@
-#include <Windows.h>
-#include <functional> 
+#include "imgui_hook.h"
 #include <GL/gl.h>
 #include "kiero/kiero.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_win32.h"
 #include "imgui/imgui_impl_opengl2.h"
 
-#define _CAST(t,v)	reinterpret_cast<t>(v)
-#define _VOID_1(v)	std::function<void(v)>
-#define _VOID_2(v)	_VOID_1(_VOID_1(v))
+//#define _CAST(t,v)	reinterpret_cast<t>(v)
+//#define _VOID_1(v)	std::function<void(v)>
+//#define _VOID_2(v)	_VOID_1(_VOID_1(v))
 
-typedef BOOL(__stdcall* wglSwapBuffers_t) (
-	HDC hDc
-);
-
-typedef LRESULT(CALLBACK* WNDPROC) (
-	IN  HWND   hwnd,
-	IN  UINT   uMsg,
-	IN  WPARAM wParam,
-	IN  LPARAM lParam
-);
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(
-	HWND hWnd, 
-	UINT msg, 
-	WPARAM wParam, 
-	LPARAM lParam
-);
-
-extern void RenderMain();
+    HWND hWnd, 
+    UINT msg, 
+    WPARAM wParam, 
+    LPARAM lParam);
 
 namespace ImGuiHook 
 {
-	// Original functions variable
-	static WNDPROC			o_WndProc;
-	static wglSwapBuffers_t o_wglSwapBuffers;
+    typedef BOOL(__stdcall* wglSwapBuffers_t) (HDC hDc);
 
-	// Global variable
-	static HGLRC      g_WglContext;
-	static bool	      initImGui = false;
-	static _VOID_1()  RenderMain;
+    typedef LRESULT(CALLBACK* WNDPROC) (
+        IN  HWND   hwnd,
+        IN  UINT   uMsg,
+        IN  WPARAM wParam,
+        IN  LPARAM lParam);
 
-	// WndProc callback ImGui handler
-	LRESULT CALLBACK h_WndProc(
-		const HWND	hWnd, 
-		UINT		uMsg, 
-		WPARAM		wParam, 
-		LPARAM		lParam)
-	{
-		if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam)) return true;
+    // Original functions variables
+    static WNDPROC			g_WndProc_o        = nullptr;
+    static wglSwapBuffers_t g_wglSwapBuffers_o = nullptr;
 
-		return CallWindowProc(o_WndProc, hWnd, uMsg, wParam, lParam);
-	}
+    // Global variables
+    static HGLRC g_wglContext = nullptr;
+    static bool	 g_initImGui  = false;
+    static HWND  g_hWnd       = nullptr;
 
-	// Helper function
-	void ExitStatus(bool* status, bool value)
-	{
-		if (status) *status = value;
-	}
-	
-	HWND hWnd = nullptr;
+    // Render function variables
+    static std::function<void()> g_renderMain = []() {};
+    static std::function<void()> g_extraInit  = []() {};
 
-	// Initialisation for ImGui
-	void InitOpenGL2(
-		IN  HDC	  hDc, 
-		OUT bool* init,
-		OUT bool* status)
-	{
-		if (WindowFromDC(hDc) == hWnd && *init) return;
-		auto tStatus = true;
+    // Last error status
+    static std::string g_lastError;
 
-		hWnd = WindowFromDC(hDc);
-		auto wLPTR = SetWindowLongPtr(hWnd, GWLP_WNDPROC, _CAST(LONG_PTR, h_WndProc));
+    // WndProc callback ImGui handler
+    static LRESULT CALLBACK ImGui_WndProc(
+        const HWND	hWnd, 
+        UINT		uMsg, 
+        WPARAM		wParam, 
+        LPARAM		lParam)
+    {
+        if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam)) 
+            return true;
 
-		if (*init) 
-		{
-			ImGui_ImplWin32_Init(hWnd);
-			ImGui_ImplOpenGL2_Init();
-			return;
-		}
-		
-		if (!wLPTR) return ExitStatus(status, false);
+        return CallWindowProc(g_WndProc_o, hWnd, uMsg, wParam, lParam);
+    }
 
-		o_WndProc = _CAST(WNDPROC, wLPTR);
-		g_WglContext = wglCreateContext(hDc);
+    static bool InitPlatform()
+    {
+        if (!ImGui_ImplWin32_Init(g_hWnd))
+        {
+            g_lastError = "Failed to init ImGui_ImplWin32, g_initImGui = " + std::to_string(g_initImGui);
+            return false;
+        }
+        if (!ImGui_ImplOpenGL2_Init())
+        {
+            g_lastError = "Failed to init ImGui_ImplOpenGL2, g_initImGui = " + std::to_string(g_initImGui);
+            return false;
+        }
+        return true;
+    }
 
-		IMGUI_CHECKVERSION();
-		ImGui::CreateContext();
+    // Initialisation for ImGui
+    bool Init_ImGui_OpenGL2(const HDC hDc) 
+    {
+        if (WindowFromDC(hDc) == g_hWnd && g_initImGui) 
+            return true;
 
-		tStatus &= ImGui_ImplWin32_Init(hWnd);
-		tStatus &= ImGui_ImplOpenGL2_Init();
+        g_hWnd = WindowFromDC(hDc);
 
-		*init = true;
-		return ExitStatus(status, tStatus);
-	}
+        if (!g_hWnd) 
+        {
+            g_lastError = "Failed to get window handle from HDC";
+            return false;
+        }
 
-	// Generic ImGui renderer for Win32 backend
-	void RenderWin32(
-		IN  std::function<void()> render)
-	{
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
+        g_WndProc_o = (WNDPROC)SetWindowLongPtr(g_hWnd, GWLP_WNDPROC, (LONG_PTR)ImGui_WndProc);
 
-		render();
+        if (!g_WndProc_o) 
+        {
+            g_lastError = "Failed to set WndProc";
+            return false;
+        }
 
-		ImGui::EndFrame();
-		ImGui::Render();
-	}
+        if (g_initImGui) 
+            return InitPlatform();
+        
+        g_wglContext = wglCreateContext(hDc);
+        if (!g_wglContext)
+        {
+            g_lastError = "Failed to create OpenGL context";
+            return false;
+        }
 
-	// Generic ImGui renderer for OpenGL2 backend
-	void RenderOpenGL2(
-		IN  HGLRC 	  WglContext,
-		IN  HDC		  hDc,
-		IN  _VOID_2() render,
-		IN  _VOID_1() render_inner,
-		OUT bool*	  status)
-	{
-		auto tStatus = true;
+        IMGUI_CHECKVERSION();
+        if (!ImGui::CreateContext())
+        {
+            g_lastError = "Failed to create ImGui context";
+            return false;
+        }
 
-		auto o_WglContext = wglGetCurrentContext();
-		tStatus &= wglMakeCurrent(hDc, WglContext);
+        if (!InitPlatform())
+            return false;
 
-		ImGui_ImplOpenGL2_NewFrame();
-		render(render_inner);
-		ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+        g_extraInit();
 
-		tStatus &= wglMakeCurrent(hDc, o_WglContext);
+        g_initImGui = true;
 
-		return ExitStatus(status, tStatus);
-	}
+        return true;
+    }
 
-	// Hooked wglSwapBuffers function
-	BOOL __stdcall h_wglSwapBuffers(
-		IN  HDC hDc)
-	{
-		InitOpenGL2(hDc, &initImGui, nullptr);
-		RenderOpenGL2(g_WglContext, hDc, RenderWin32, RenderMain, nullptr);
+    // Generic ImGui renderer for OpenGL2 backend
+    bool Render_ImGui(const HDC hDc)
+    {
+        auto o_WglContext = wglGetCurrentContext();
+        if (!o_WglContext)
+        {
+            g_lastError = "Failed to get current OpenGL context";
+            return false;
+        }
+        if (!wglMakeCurrent(hDc, g_wglContext))
+        {
+            g_lastError = "Failed to make OpenGL context current";
+            return false;
+        }
 
-		return o_wglSwapBuffers(hDc);
-	}
+        ImGui_ImplOpenGL2_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+        g_renderMain();
+        ImGui::EndFrame();
+        ImGui::Render();
+        ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
 
-	// Function to get the pointer of wglSwapBuffers
-	wglSwapBuffers_t* get_wglSwapBuffers()
-	{
-		auto hMod = GetModuleHandleA("OPENGL32.dll");
-		if (!hMod) return nullptr;
+        if (!wglMakeCurrent(hDc, o_WglContext))
+        {
+            g_lastError = "Failed to make original OpenGL context current";
+            return false;
+        }
 
-		return (wglSwapBuffers_t*)GetProcAddress(hMod, "wglSwapBuffers");
-	}
+        return true;
+    }
 
-	// Initialise hook
-	bool InitHook()
-	{
-		if (kiero::init(kiero::RenderType::Auto) == kiero::Status::Success)
-			return kiero::bind(get_wglSwapBuffers(), (void**)&o_wglSwapBuffers, h_wglSwapBuffers) == kiero::Status::Success;
+    // Hooked wglSwapBuffers function
+    static BOOL WINAPI wglSwapBuffers_h(const HDC hDc)
+    {
+        Init_ImGui_OpenGL2(hDc);
+        Render_ImGui(hDc);
+        return g_wglSwapBuffers_o(hDc);
+    }
 
-		return false;
-	}
+    // Initialise hook
+    static bool InitHook()
+    {
+        if (auto hMod = GetModuleHandleA("OPENGL32.dll")) 
+            g_wglSwapBuffers_o = (wglSwapBuffers_t)GetProcAddress(hMod, "wglSwapBuffers");
+        
+        if (g_wglSwapBuffers_o && kiero::init(kiero::RenderType::Auto) == kiero::Status::Success)
+            return kiero::bind(g_wglSwapBuffers_o, (void**)&g_wglSwapBuffers_o, wglSwapBuffers_h) == kiero::Status::Success;
 
-	// Main load function
-	bool Load(
-		IN  _VOID_1() render)
-	{
-		RenderMain = render;
-		return InitHook();
-	}
+        return false;
+    }
 
-	// Main unload function
-	void Unload()
-	{
-		kiero::shutdown();
-	}
+    std::string GetLastError()
+    {
+        return g_lastError;
+    }
+
+    // Main load function
+    bool Load(const std::function<void()>& render, const std::function<void()>& init)
+    {
+        g_renderMain = render;
+        g_extraInit = init;
+        return InitHook();
+    }
+
+    // Main unload function
+    void Unload()
+    {
+        kiero::shutdown();
+    }
 }
 
 
