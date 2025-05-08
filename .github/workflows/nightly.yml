@@ -35,14 +35,14 @@ jobs:
 
       # Upload x64 DLL
       - name: Upload x64 DLL
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Universal OpenGL 2 Kiero Hook x64
           path: x64/Release/Universal OpenGL 2 Kiero Hook.dll
 
       # Upload Win32 DLL
       - name: Upload Win32 DLL
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Universal OpenGL 2 Kiero Hook Win32
           path: Release/Universal OpenGL 2 Kiero Hook.dll
@@ -55,14 +55,14 @@ jobs:
     steps:
       # Download x64 artifact
       - name: Download x64 Build Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: Universal OpenGL 2 Kiero Hook x64
           path: ./x64
   
       # Download Win32 artifact
       - name: Download Win32 Build Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: Universal OpenGL 2 Kiero Hook Win32
           path: ./Win32
