@@ -1,5 +1,9 @@
 #include "imgui_hook.h"
+
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 #include <GL/gl.h>
+
 #include "external/kiero/kiero.h"
 #include "external/imgui/imgui.h"
 #include "external/imgui/imgui_impl_win32.h"

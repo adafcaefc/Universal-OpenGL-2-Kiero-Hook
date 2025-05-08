@@ -1,4 +1,6 @@
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+
 #include "app.h"
 #include "imgui_hook.h"
 
