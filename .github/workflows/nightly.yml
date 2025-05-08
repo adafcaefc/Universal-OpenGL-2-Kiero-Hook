@@ -31,7 +31,7 @@ jobs:
 
       # Build Win32
       - name: Build Solution Win32
-        run: msbuild "Universal OpenGL 2 Kiero Hook.sln" /p:Configuration=Release /p:Platform=Win32
+        run: msbuild "Universal OpenGL 2 Kiero Hook.sln" /p:Configuration=Release /p:Platform=x86
 
       # Upload x64 DLL
       - name: Upload x64 DLL
