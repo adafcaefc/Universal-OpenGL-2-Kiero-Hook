@@ -1,14 +1,9 @@
 #include "imgui_hook.h"
 #include <GL/gl.h>
-#include "kiero/kiero.h"
-#include "imgui/imgui.h"
-#include "imgui/imgui_impl_win32.h"
-#include "imgui/imgui_impl_opengl2.h"
-
-//#define _CAST(t,v)	reinterpret_cast<t>(v)
-//#define _VOID_1(v)	std::function<void(v)>
-//#define _VOID_2(v)	_VOID_1(_VOID_1(v))
-
+#include "external/kiero/kiero.h"
+#include "external/imgui/imgui.h"
+#include "external/imgui/imgui_impl_win32.h"
+#include "external/imgui/imgui_impl_opengl2.h"
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(
     HWND hWnd, 
@@ -165,8 +160,12 @@ namespace ImGuiHook
         if (auto hMod = GetModuleHandleA("OPENGL32.dll")) 
             g_wglSwapBuffers_o = (wglSwapBuffers_t)GetProcAddress(hMod, "wglSwapBuffers");
         
-        if (g_wglSwapBuffers_o && kiero::init(kiero::RenderType::Auto) == kiero::Status::Success)
+        const auto status = kiero::init(kiero::RenderType::OpenGL);
+
+        if (g_wglSwapBuffers_o && status == kiero::Status::Success)
             return kiero::bind(g_wglSwapBuffers_o, (void**)&g_wglSwapBuffers_o, wglSwapBuffers_h) == kiero::Status::Success;
+        else
+            g_lastError = "Failed to do kiero::init, error code: " + std::to_string(status);
 
         return false;
     }
