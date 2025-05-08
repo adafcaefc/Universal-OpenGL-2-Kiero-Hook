@@ -1,0 +1,88 @@
+name: Build and Developmental Release
+
+on:
+  push:
+    branches: 
+      - '*'  # Trigger on any branch push
+
+jobs:
+  build:
+    name: Build x64-Release
+    runs-on: windows-latest
+
+    steps:
+      # Checkout the code
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Set up MSBuild
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v1
+
+      # Set up Visual Studio
+      - name: Set up Visual Studio
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x' # Adjust based on your requirements
+
+      # Build x64
+      - name: Build Solution x64
+        run: msbuild "Universal OpenGL 2 Kiero Hook.sln" /p:Configuration=Release /p:Platform=x64
+
+      # Build Win32
+      - name: Build Solution Win32
+        run: msbuild "Universal OpenGL 2 Kiero Hook.sln" /p:Configuration=Release /p:Platform=Win32
+
+      # Upload x64 DLL
+      - name: Upload x64 DLL
+        uses: actions/upload-artifact@v3
+        with:
+          name: Universal OpenGL 2 Kiero Hook x64
+          path: x64/Release/Universal OpenGL 2 Kiero Hook.dll
+
+      # Upload Win32 DLL
+      - name: Upload Win32 DLL
+        uses: actions/upload-artifact@v3
+        with:
+          name: Universal OpenGL 2 Kiero Hook Win32
+          path: Release/Universal OpenGL 2 Kiero Hook.dll
+
+  release:
+    name: Create Developmental Release
+    needs: build
+    runs-on: ubuntu-latest
+  
+    steps:
+      # Download x64 artifact
+      - name: Download x64 Build Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: Universal OpenGL 2 Kiero Hook x64
+          path: ./x64
+  
+      # Download Win32 artifact
+      - name: Download Win32 Build Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: Universal OpenGL 2 Kiero Hook Win32
+          path: ./Win32
+  
+      # Rename DLLs
+      - name: Rename DLLs
+        run: |
+          mv "./x64/Universal OpenGL 2 Kiero Hook.dll" "./Hook_x64.dll"
+          mv "./Win32/Universal OpenGL 2 Kiero Hook.dll" "./Hook_Win32.dll"
+  
+      # Create GitHub Release
+      - name: Update Development Release
+        uses: andelf/nightly-release@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: develop
+          name: 'Developmental Build'
+          body: |
+            Development release for commit ${{ github.sha }}.
+          files: |
+            ./Hook_x64.dll
+            ./Hook_Win32.dll
